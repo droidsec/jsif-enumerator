@@ -9,31 +9,40 @@
 A drozer module built to enumerate JS interfacstrings in applications and 
 aid low false positive detection of addJavascriptInterface vulenrabilites.
 
-===============Introduction=================
-The jsifenum drozer module performs rudimetary static analysis of the classes.dex file in an android applicaiton
+===============Notes=================
+*The jsifenum drozer module performs rudimetary static analysis of the classes.dex file in an android applicaiton
 to try to strip out references to javascript bridges being used by the targeted application. 
-The usage premis here is that you are looking to enumerate the javasript bridges being used to build code execution
+
+*The usage case here is that you are looking to enumerate the javasript bridges being used to build code execution
 exploits for a targeted application. So if suspect an application may be exploitatable by way of jsif this little module
 will strip out all of the referenced javascript bridges for you.
+
+*This module makes one fundamental assumption, that is if the window object is deferencing a weird name, that it is probably
+a javascript bridge, we assume that the user has already identified an exposed and "interactable"/"influencable" bridged webview.
+Please be advised this is purely a static analysis tool, specifically because its been developed to support exploitation on 
+both JB_MR2 devices and above, this means using reflection to test for the exploitability of briges in the general sense is out of the question.
 
 It can also be used to scan all the applicaitons on a device for javascript bridges.
 
 ==================Usage=====================
 
-run ex.scanner.jsifenum -a com.exsoul -u 
+Run listing only interfaces and either usages found
+dz> run ex.scanner.jsifenum -a com.exsoul -u 
 [*] analyzing 'com.exsoul' for interfaces ...
 [*] found 1 interfaces with 1 usages identified
 	[+] interface : 'android'
 		usages identified...
 		[+] 'window.android.addExso...'
 
-run ex.scanner.jsifenum -a com.exsoul -m
+Run listing only methods and interfaces found
+dz> run ex.scanner.jsifenum -a com.exsoul -m
 [*] analyzing 'com.exsoul' for interfaces ...
 [*] found 1 interfaces with 1 usages identified
 	[+] interface : 'android'
 		methods/interface fields identified...
 		[+] addExsoulSpeedDial() 
 
+Run listing both methods and usages...
 run ex.scanner.jsifenum -a com.exsoul -m -u
 [*] analyzing 'com.exsoul' for interfaces ...
 [*] found 1 interfaces with 1 usages identified
@@ -43,14 +52,11 @@ run ex.scanner.jsifenum -a com.exsoul -m -u
 		methods/interface fields identified...
 		[+] addExsoulSpeedDial()
 
-Last Modified: 2014-04-12
-Credit: @k3170makan
-License: BSD (3-clause)
+Arguments
 
-optional arguments:
-  -h, --help
+  -h, --help				Display help page
   -a <package or uri>, --package <package or uri>, --uri <package or uri>
-                        specify a package, or content uri to search
+                        specify a package, or content uri to search, without this the module will scan all enumerate-able applicaition packages on the device
   -u, --usages          print identified usages of interfaces
   -m, --methods         print methods referenced from interfaces, very usefull for exploitation on KitKat devices
 
