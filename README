@@ -6,15 +6,55 @@
 
 										by k3170makan
 
-A drozer module built to enumerate JS interface strings in applications, 
-aid low false positive detection of addJavascriptInterface vulenrabilites
-and build payloads in various formats.
+A drozer module built to enumerate JS interfacstrings in applications and 
+aid low false positive detection of addJavascriptInterface vulenrabilites.
 
 ===============Introduction=================
-STUB - will add documentation soon.
+The jsifenum drozer module performs rudimetary static analysis of the classes.dex file in an android applicaiton
+to try to strip out references to javascript bridges being used by the targeted application. 
+The usage premis here is that you are looking to enumerate the javasript bridges being used to build code execution
+exploits for a targeted application. So if suspect an application may be exploitatable by way of jsif this little module
+will strip out all of the referenced javascript bridges for you.
+
+It can also be used to scan all the applicaitons on a device for javascript bridges.
 
 ==================Usage=====================
-STUB - will add documentation soon.
+
+run ex.scanner.jsifenum -a com.exsoul -u 
+[*] analyzing 'com.exsoul' for interfaces ...
+[*] found 1 interfaces with 1 usages identified
+	[+] interface : 'android'
+		usages identified...
+		[+] 'window.android.addExso...'
+
+run ex.scanner.jsifenum -a com.exsoul -m
+[*] analyzing 'com.exsoul' for interfaces ...
+[*] found 1 interfaces with 1 usages identified
+	[+] interface : 'android'
+		methods/interface fields identified...
+		[+] addExsoulSpeedDial() 
+
+run ex.scanner.jsifenum -a com.exsoul -m -u
+[*] analyzing 'com.exsoul' for interfaces ...
+[*] found 1 interfaces with 1 usages identified
+	[+] interface : 'android'
+		usages identified...
+		[+] 'window.android.addExso...'
+		methods/interface fields identified...
+		[+] addExsoulSpeedDial()
+
+Last Modified: 2014-04-12
+Credit: @k3170makan
+License: BSD (3-clause)
+
+optional arguments:
+  -h, --help
+  -a <package or uri>, --package <package or uri>, --uri <package or uri>
+                        specify a package, or content uri to search
+  -u, --usages          print identified usages of interfaces
+  -m, --methods         print methods referenced from interfaces, very usefull for exploitation on KitKat devices
 
 ==============Troubleshooting==============
 STUB - will add docs soon.                                               
+If you have any trouble running and installing the module, ---in the mean time---please feel free to log an issue on the github repo :)
+
