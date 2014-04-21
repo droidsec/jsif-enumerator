@@ -1,0 +1,130 @@
+import re
+from drozer.modules import common, Module
+class jsifenum(Module, common.FileSystem, common.PackageManager, common.Provider, common.Strings, common.ZipFile, common.Assets):
+	name = "jsifenum"
+	description = """
+			Extract all possible javascript interfaces from an application and optionally list usages per interface found
+"""
+	examples = """
+run ex.scanner.jsifenum -a com.exsoul -u 
+[*] analyzing 'com.exsoul' for interfaces ...
+[*] found 1 interfaces with 1 usages identified
+	[+] interface : 'android'
+		usages identified...
+		[+] 'window.android.addExso...'
+
+run ex.scanner.jsifenum -a com.exsoul -m
+[*] analyzing 'com.exsoul' for interfaces ...
+[*] found 1 interfaces with 1 usages identified
+	[+] interface : 'android'
+		methods/interface fields identified...
+		[+] addExsoulSpeedDial() 
+
+run ex.scanner.jsifenum -a com.exsoul -m -u
+[*] analyzing 'com.exsoul' for interfaces ...
+[*] found 1 interfaces with 1 usages identified
+	[+] interface : 'android'
+		usages identified...
+		[+] 'window.android.addExso...'
+		methods/interface fields identified...
+		[+] addExsoulSpeedDial() 
+"""
+	author = "@k3170makan"
+	date = "2014-04-12"
+	license = "BSD (3-clause)"
+	path = ["ex", "scanner"]
+	def add_arguments(self, parser):
+		parser.add_argument("-a", "--package", "--uri", dest="package_or_uri", help="specify a package, or content uri to search", metavar="<package or uri>")
+		parser.add_argument("-u", "--usages", dest="usages",action="store_true", help="print identified usages of interfaces")
+		parser.add_argument("-m", "--methods", dest="methods",action="store_true", help="print methods referenced from interfaces")
+	def execute(self, arguments):
+		#need to walk through the res folder and grep for window.* strings and then back reference this with its occurance in the dex file
+		#waiting on feedback about how that should be done...
+		if arguments.package_or_uri != None:
+			self.check_package(arguments.package_or_uri, arguments)
+		else:
+			for package in self.packageManager().getPackages(common.PackageManager.GET_PERMISSIONS):
+				try:
+					self.check_package(package.packageName, arguments)
+				except Exception, e:
+					print str(e)
+	def check_package(self, package, arguments):
+		window_regex = re.compile("[a-zA-Z0-9\-_\ ]*window\.[a-zA-Z0-9\-\_]*") #match any mention of the window string, hopefully this will catch usage of the js interface
+		#reference for javasript variable name matching http://stackoverflow.com/questions/19782163/javascript-variable-name-regex
+		interfaces = dict() #dictionary mapping interface to usage instances...will probably turn this into an lcm prio heap to bubble interface strings for known add frame works and apps to the top as they are added
+		methods = dict() #dictionary mapping interface names to methods referenced
+		self.deleteFile("/".join([self.cacheDir(),"classes.dex"]))
+		for path in self.packageManager().getSourcePaths(package):
+			if ".apk" in path:
+				dex = self.extractFromZip("classes.dex",path,self.cacheDir()) #would it extract an entire folder?
+				#res = self.extractFromZip("",path,self.cacheDir()) #would it extract the entire folder?
+				if dex != None:
+					for string in self.getStrings(dex.getAbsolutePath()):
+						if window_regex.search(string): #not the best way to match strings but it'll work
+							_method = self.grabInterfaceMethod(string)
+							_interface = self.splitOutInterface(string)
+							_interface = self.cleanInterface(_interface)
+							_usage = string
+							#try to store interface name and usage
+							if _interface != None and len(_interface) != 0:
+								try:
+									if	interfaces.has_key(_interface):
+										interfaces[_interface].append(_usage)
+									else:
+										interfaces[_interface] = [_usage]
+									#try to store methods, if any..
+									if _method != None and len(_method) != 0:
+										if methods.has_key(_interface):
+											if not (_method in methods[_interface]):
+												methods[_interface].append(_method)
+										else:	
+											methods[_interface] = [_method]	
+								except KeyError:
+									continue #not sure why that happend lols
+		if len(interfaces) != 0:
+			print "[*] analyzing '%s' for interfaces ..." % (package)
+			print "[*] found %d interfaces with %d usages identified" % (len(interfaces),sum([len(interfaces[interface]) for interface in interfaces]))
+			for interface in interfaces.keys():
+				print "\t[+] interface : '%s'" % (interface)
+				if (arguments.usages):
+					print "\t\tusages identified..."
+					for usage in interfaces[interface]:
+						index = usage.index(interface) #i actually want to print a maximum of 20 characters, need to figure out how to calculate the window of text to print around the interface name
+						print "\t\t[+] '%s...'" % (usage[index-7:index+15])
+				if (arguments.methods):
+					print "\t\tmethods/interface fields identified..."
+					for _methods in methods[interface]:
+							print "\t\t[+] %s " % (_methods)
+	def grabInterfaceMethod(self,string):
+		try:
+			string = string.split("window.")[1]
+			string = string.split(".")[1]
+			string = string.split("(")[0]
+			return string + "()"
+		except IndexError:
+			return ''
+	def splitOutInterface(self,string):
+		try:
+			string = string.split("window.")[1]
+			string = string.split(".")[0]
+			return string
+		except IndexError:
+			return ''
+	def cleanInterface(self,interface):
+		#need to stripout the first work that occurs in the interface string, too lazy to use regexes
+		try:
+			interface = interface.split(" ")[0]
+			interface = interface.split("(")[0]
+			interface = interface.split(")")[0]
+			interface = interface.split("=")[0]
+			interface = interface.split("}")[0]
+			interface = interface.split("{")[0]
+			interface = interface.split("/")[0]
+			interface = interface.split("\\")[0]
+			interface = interface.split("[")[0]
+			interface = interface.split("]")[0]
+			return interface
+		except IndexError:
+			return ''
+	#def grab_jsBridgeClass(self,package,arguments):
+	#	return
